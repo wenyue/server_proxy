@@ -1,47 +1,34 @@
 #!/bin/bash
+# Main setup script for nginx proxy server
 
 set -e
 
-echo "[+] Updating package index..."
-sudo apt update
+echo "🚀 Setting up nginx proxy server..."
+echo ""
 
-# Install prerequisites
-if ! command -v nginx >/dev/null 2>&1; then
-  echo "[+] Installing nginx..."
-  sudo apt install -y nginx
-fi
+# Install system dependencies
+bash script/install_prerequisites.sh
+echo ""
 
-if ! command -v ifconfig >/dev/null 2>&1; then
-  echo "[+] Installing net-tools..."
-  sudo apt install -y net-tools
-fi
+# Configure nginx
+bash script/copy_nginx_config.sh
+echo ""
 
-# Copy nginx configuration files
-echo "[+] Copying nginx configurations..."
-sudo cp -f nginx/nginx.conf /etc/nginx/nginx.conf
-sudo mkdir -p /etc/nginx/streams
-sudo cp -f nginx/streams/*.conf /etc/nginx/streams/
+# Start nginx service
+bash script/validate_and_restart_nginx.sh
+echo ""
 
-# Validate and restart nginx
-echo "[+] Validating and restarting nginx..."
-sudo nginx -t && sudo systemctl enable nginx && sudo systemctl restart nginx
+# Setup log management
+bash script/setup_logrotate.sh
+echo ""
 
-# Print public IPv4/IPv6 using ifconfig (best-effort)
-PUB4=$(ifconfig 2>/dev/null \
-  | awk '/inet /{print $2}' \
-  | sed 's/^addr://;s/[^0-9\.].*$//' \
-  | grep -E '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' \
-  | grep -v -E '^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' \
-  | head -n1)
+# Display network information
+bash script/print_public_ip.sh
+echo ""
 
-PUB6=$(ifconfig 2>/dev/null \
-  | awk '/inet6 /{print $2}' \
-  | sed 's/^addr://;s/%.*$//' \
-  | grep -iE '^[0-9a-f:]+$' \
-  | grep -viE '^(::1|fe[89ab]:|fc..:|fd..:)' \
-  | head -n1)
-
-echo "Public IPv4: ${PUB4:-N/A}"
-echo "Public IPv6: ${PUB6:-N/A}"
-
-echo "[✓] Setup with 4001 schedule completed."
+echo "🎉 Setup completed successfully!"
+echo ""
+echo "📝 Next steps:"
+echo "   • Monitor logs: bash monitor_logs.sh"
+echo "   • Check status: systemctl status nginx"
+echo "   • View config: nginx -T"
