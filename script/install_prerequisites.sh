@@ -20,6 +20,13 @@ else
   echo "   ✓ net-tools already available"
 fi
 
+if ! command -v logrotate >/dev/null 2>&1; then
+  echo "   → Installing logrotate"
+  sudo apt install -y logrotate
+else
+  echo "   ✓ logrotate already available"
+fi
+
 if ! systemctl list-unit-files | grep -q '^cron\.service'; then
   echo "   → Installing cron scheduler"
   sudo apt install -y cron
