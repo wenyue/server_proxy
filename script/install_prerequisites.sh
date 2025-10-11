@@ -13,11 +13,11 @@ else
   echo "   ✓ nginx already installed"
 fi
 
-if ! command -v ifconfig >/dev/null 2>&1; then
-  echo "   → Installing net-tools package"
-  sudo apt install -y net-tools
+if ! command -v ip >/dev/null 2>&1; then
+  echo "   → Installing iproute2 package"
+  sudo apt install -y iproute2
 else
-  echo "   ✓ net-tools already available"
+  echo "   ✓ iproute2 already available"
 fi
 
 if ! command -v logrotate >/dev/null 2>&1; then
