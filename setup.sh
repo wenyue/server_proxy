@@ -3,18 +3,40 @@
 
 set -e
 
-echo "🚀 Setting up nginx proxy server..."
+MODE=${1:-default}
+
+if [ "$MODE" = "cn2" ]; then
+	echo "🚀 Setting up nginx proxy with CN2 mode..."
+else
+	echo "🚀 Setting up nginx proxy server..."
+fi
 echo ""
 
 # Install system dependencies
 bash script/install_prerequisites.sh
 echo ""
 
-# Configure nginx
-bash script/copy_nginx_config.sh
-echo ""
+if [ "$MODE" = "cn2" ]; then
+	# Configure nginx excluding 4001; it will be toggled by scheduler
+	bash script/copy_nginx_config.sh 4001.conf
+	echo ""
+else
+	# Configure nginx (all streams)
+	bash script/copy_nginx_config.sh
+	echo ""
+fi
 
-# Start nginx service
+if [ "$MODE" = "cn2" ]; then
+	# Setup CN2 scheduler before (re)starting nginx, then (re)start nginx
+	bash script/enable_cn2_mode.sh
+	echo ""
+else
+  # If previously in CN2 mode, disable its cron scheduler and clean up
+  bash script/disable_cn2_mode.sh
+	echo ""
+fi
+
+# Start/restart nginx service
 bash script/validate_and_restart_nginx.sh
 echo ""
 
@@ -31,4 +53,7 @@ echo ""
 echo "📝 Next steps:"
 echo "   • Monitor logs: bash monitor_logs.sh"
 echo "   • Check status: systemctl status nginx"
+if [ "$MODE" = "cn2" ]; then
+	echo "   • View cron jobs: sudo crontab -l"
+fi
 echo "   • View config: nginx -T"
