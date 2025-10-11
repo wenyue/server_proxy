@@ -8,7 +8,7 @@ sudo apt update -qq
 
 if ! command -v nginx >/dev/null 2>&1; then
   echo "   → Installing nginx web server"
-  sudo apt install -y nginx
+  sudo apt install -y nginx-full
 else
   echo "   ✓ nginx already installed"
 fi
