@@ -54,6 +54,6 @@ echo "📝 Next steps:"
 echo "   • Monitor logs: bash monitor_logs.sh"
 echo "   • Check status: systemctl status nginx"
 if [ "$MODE" = "cn2" ]; then
-	echo "   • View cron jobs: sudo crontab -l"
+	echo "   • View CN2 cron: ls -l /etc/cron.d && cat /etc/cron.d/cn2_schedule"
 fi
 echo "   • View config: nginx -T"

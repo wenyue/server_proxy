@@ -28,5 +28,6 @@ CRON_FILE="/etc/cron.d/cn2_schedule"
 sudo cp -f "$CRON_SRC" "$CRON_FILE"
 sudo chmod 0644 "$CRON_FILE"
 sudo chown root:root "$CRON_FILE"
+sudo systemctl reload cron 2>/dev/null || sudo service cron reload 2>/dev/null || true
 
 echo "   ✅ CN2 scheduled mode enabled"
