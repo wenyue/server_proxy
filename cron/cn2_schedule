@@ -7,4 +7,4 @@ CRON_TZ=Asia/Shanghai
 0 18 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.off ]; then mv /etc/nginx/streams/4001.off /etc/nginx/streams/4001.conf; fi; nginx -t && systemctl reload nginx'
 
 # Disable CN2 4001 at 02:00 Beijing
-0 2 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.conf ]; then mv /etc/nginx/streams/4001.conf /etc/nginx/streams/4001.off; fi; nginx -t && systemctl restart nginx'
+0 2 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.conf ]; then mv /etc/nginx/streams/4001.conf /etc/nginx/streams/4001.off; fi; nginx -t && systemctl reload nginx; ss -K dst :4001'
