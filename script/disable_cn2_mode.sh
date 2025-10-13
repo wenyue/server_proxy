@@ -10,7 +10,7 @@ if [ -f "/etc/cron.d/cn2_schedule" ]; then
   echo "   → Removing /etc/cron.d/cn2_schedule"
   sudo rm -f /etc/cron.d/cn2_schedule
   # Reload cron to apply removal (best-effort across distros)
-  sudo systemctl reload cron 2>/dev/null || sudo service cron reload 2>/dev/null || true
+  sudo systemctl restart cron 2>/dev/null || sudo service cron restart 2>/dev/null || true
 else
   echo "   → No cn2_schedule cron file found"
 fi

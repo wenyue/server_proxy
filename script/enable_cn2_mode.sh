@@ -13,11 +13,11 @@ echo "   → Current Beijing time: $(TZ=Asia/Shanghai date '+%H:%M')"
 
 # Active between 18:00-01:59 (Beijing time)
 if [ "$HOUR_SH" -ge 18 ] || [ "$HOUR_SH" -lt 2 ]; then
-  echo "   → CN2 4001 is currently ACTIVE (18:00-02:00 window)"
+  echo "   → CN2 is currently ACTIVE (18:00-02:00 window)"
   sudo cp -f "$SRC_4001" /etc/nginx/streams/4001.conf
   sudo rm -f /etc/nginx/streams/4001.off 2>/dev/null || true
 else
-  echo "   → CN2 4001 is currently INACTIVE (outside 18:00-02:00 window)"
+  echo "   → CN2 is currently INACTIVE (outside 18:00-02:00 window)"
   sudo cp -f "$SRC_4001" /etc/nginx/streams/4001.off
   sudo rm -f /etc/nginx/streams/4001.conf 2>/dev/null || true
 fi
@@ -28,6 +28,6 @@ CRON_FILE="/etc/cron.d/cn2_schedule"
 sudo cp -f "$CRON_SRC" "$CRON_FILE"
 sudo chmod 0644 "$CRON_FILE"
 sudo chown root:root "$CRON_FILE"
-sudo systemctl reload cron 2>/dev/null || sudo service cron reload 2>/dev/null || true
+sudo systemctl restart cron 2>/dev/null || sudo service cron restart 2>/dev/null || true
 
 echo "   ✅ CN2 scheduled mode enabled"
