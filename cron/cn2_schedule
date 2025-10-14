@@ -1,10 +1,9 @@
 # Toggle nginx CN2 (port 4001) stream between 18:00-02:00 Beijing time
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-CRON_TZ=Asia/Shanghai
 
 # Enable CN2 4001 at 18:00 Beijing
-0 18 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.off ]; then mv /etc/nginx/streams/4001.off /etc/nginx/streams/4001.conf; fi; nginx -t && systemctl reload nginx'
+0 10 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.off ]; then mv /etc/nginx/streams/4001.off /etc/nginx/streams/4001.conf; fi; nginx -t && systemctl reload nginx'
 
 # Disable CN2 4001 at 02:00 Beijing
-0 2 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.conf ]; then mv /etc/nginx/streams/4001.conf /etc/nginx/streams/4001.off; fi; nginx -t && systemctl reload nginx; ss -K dst :4001'
+0 18 * * * root bash -lc 'if [ -f /etc/nginx/streams/4001.conf ]; then mv /etc/nginx/streams/4001.conf /etc/nginx/streams/4001.off; fi; nginx -t && systemctl reload nginx; ss -K dst :4001'
