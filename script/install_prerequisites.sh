@@ -37,4 +37,11 @@ fi
 echo "   → Ensuring cron service is running"
 sudo systemctl enable --now cron
 
+if ! command -v ifstat >/dev/null 2>&1; then
+  echo "   → Installing ifstat"
+  sudo apt install -y ifstat
+else
+  echo "   ✓ ifstat already available"
+fi
+
 echo "   ✅ All prerequisites ready"
