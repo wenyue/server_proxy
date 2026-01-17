@@ -11,6 +11,9 @@ echo "   → Copying main nginx configuration"
 sudo cp -f nginx/nginx.conf /etc/nginx/nginx.conf
 sudo mkdir -p /etc/nginx/streams
 
+echo "   → Cleaning up old stream configurations"
+sudo rm -f /etc/nginx/streams/* 2>/dev/null || true
+
 if [ -z "$1" ]; then
   # Copy all stream configurations by default
   echo "   → Copying all stream configurations"
