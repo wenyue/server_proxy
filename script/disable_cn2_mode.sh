@@ -15,16 +15,16 @@ else
   echo "   → No cn2_schedule cron file found"
 fi
 
-# Ensure 4001 is active under default mode
-if [ -f "/etc/nginx/streams/4001.off" ]; then
-  echo "   → Removing /etc/nginx/streams/4001.off to reactivate 4001"
-  sudo rm -f /etc/nginx/streams/4001.off
+# Ensure pin-server is active under default mode
+if [ -f "/etc/nginx/streams/pin-server.off" ]; then
+  echo "   → Removing /etc/nginx/streams/pin-server.off to reactivate pin-server"
+  sudo rm -f /etc/nginx/streams/pin-server.off
 fi
 
-# Make sure 4001.conf exists (in case it was missing)
-if [ ! -f "/etc/nginx/streams/4001.conf" ] && [ -f "nginx/streams/4001.conf" ]; then
-  echo "   → Restoring /etc/nginx/streams/4001.conf from repository"
-  sudo cp -f nginx/streams/4001.conf /etc/nginx/streams/4001.conf
+# Make sure pin-server.conf exists (in case it was missing)
+if [ ! -f "/etc/nginx/streams/pin-server.conf" ] && [ -f "config/nginx/streams/pin-server.conf" ]; then
+  echo "   → Restoring /etc/nginx/streams/pin-server.conf from repository"
+  sudo cp -f config/nginx/streams/pin-server.conf /etc/nginx/streams/pin-server.conf
 fi
 
 echo "   ✅ CN2 scheduled mode disabled"

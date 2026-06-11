@@ -1,0 +1,9 @@
+# Toggle nginx CN2 pin-server stream between 18:00-02:00 Beijing time
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Enable CN2 pin-server at 18:00 Beijing
+0 10 * * * root bash -lc 'if [ -f /etc/nginx/streams/pin-server.off ]; then mv /etc/nginx/streams/pin-server.off /etc/nginx/streams/pin-server.conf; fi; nginx -t && systemctl reload nginx'
+
+# Disable CN2 pin-server at 02:00 Beijing
+0 18 * * * root bash -lc 'if [ -f /etc/nginx/streams/pin-server.conf ]; then mv /etc/nginx/streams/pin-server.conf /etc/nginx/streams/pin-server.off; fi; nginx -t && systemctl reload nginx; ss -K dst :4001'

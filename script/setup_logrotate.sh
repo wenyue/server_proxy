@@ -6,7 +6,7 @@ set -e
 echo "📋 Setting up log rotation..."
 
 echo "   → Installing logrotate configuration"
-sudo cp -f nginx/logrotate.conf /etc/logrotate.d/nginx-bandwidth
+sudo cp -f config/nginx/logrotate.conf /etc/logrotate.d/nginx-bandwidth
 
 echo "   → Testing configuration syntax"
 if command -v logrotate >/dev/null 2>&1; then

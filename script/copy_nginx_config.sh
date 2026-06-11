@@ -5,10 +5,10 @@ set -e
 
 echo "📁 Configuring nginx..."
 
-STREAMS_SRC_DIR="nginx/streams"
+STREAMS_SRC_DIR="config/nginx/streams"
 
 echo "   → Copying main nginx configuration"
-sudo cp -f nginx/nginx.conf /etc/nginx/nginx.conf
+sudo cp -f config/nginx/nginx.conf /etc/nginx/nginx.conf
 sudo mkdir -p /etc/nginx/streams
 
 echo "   → Cleaning up old stream configurations"
