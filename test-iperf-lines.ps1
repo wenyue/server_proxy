@@ -1,5 +1,5 @@
 param(
-    [string]$Config = "config/iperf-lines.csv",
+    [string]$Config = "",
     [int]$Time = 10,
     [int]$Parallel = 1,
     [switch]$NoReverse
@@ -11,8 +11,15 @@ if (-not (Get-Command iperf3 -ErrorAction SilentlyContinue)) {
     Write-Error "iperf3 is required. Install it first and make sure it is in PATH."
 }
 
-if (-not (Test-Path -LiteralPath $Config)) {
-    Write-Error "Config file not found: $Config"
+$python = $env:PYTHON_BIN
+if (-not $python) {
+    if (Get-Command python -ErrorAction SilentlyContinue) {
+        $python = "python"
+    } elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
+        $python = "python3"
+    } else {
+        Write-Error "Python is required to read the network registry."
+    }
 }
 
 if ($Time -lt 1) {
@@ -23,11 +30,24 @@ if ($Parallel -lt 1) {
     Write-Error "-Parallel must be a positive integer."
 }
 
-$lines = Import-Csv -LiteralPath $Config
+if ($Config) {
+    if (-not (Test-Path -LiteralPath $Config)) {
+        Write-Error "Config file not found: $Config"
+    }
+    $lines = Import-Csv -LiteralPath $Config
+    $configSource = $Config
+} else {
+    $csvText = & $python script/registry.py iperf-csv
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to load iperf targets from network registry."
+    }
+    $lines = $csvText | ConvertFrom-Csv
+    $configSource = "network registry"
+}
 $failed = 0
 
 Write-Host "Running iperf3 line tests"
-Write-Host "Config: $Config"
+Write-Host "Config: $configSource"
 Write-Host "Duration: ${Time}s per direction"
 Write-Host "Parallel streams: $Parallel"
 Write-Host ""

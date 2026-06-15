@@ -5,7 +5,11 @@ set -e
 
 echo "⏰ Enabling CN2 scheduled mode..."
 
-STREAMS_SRC_DIR="config/nginx/streams"
+STREAMS_SRC_DIR="$1"
+if [ -z "$STREAMS_SRC_DIR" ]; then
+  echo "Usage: bash script/enable_cn2_mode.sh <streams-source-dir>" >&2
+  exit 2
+fi
 PIN_SERVER_SRC="$STREAMS_SRC_DIR/pin-server.conf"
 HOUR_SH=$(TZ=Asia/Shanghai date +%H)
 

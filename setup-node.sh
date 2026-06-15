@@ -4,17 +4,16 @@
 set -e
 
 MODE=${1:-default}
-CONFIG_FILE="${NETDATA_CONFIG_FILE:-config/netdata.conf}"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
-if [ ! -f "$CONFIG_FILE" ]; then
-	echo "✗ Missing $CONFIG_FILE" >&2
-	exit 1
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+	if command -v python3 >/dev/null 2>&1; then
+		PYTHON_BIN="python3"
+	else
+		echo "✗ Python is required to read the public network registry" >&2
+		exit 1
+	fi
 fi
-
-# shellcheck disable=SC1090
-. "$CONFIG_FILE"
-: "${NETDATA_PARENT:?NETDATA_PARENT must be set in $CONFIG_FILE}"
-: "${NETDATA_API_KEY:?NETDATA_API_KEY must be set in $CONFIG_FILE}"
 
 if [ "$MODE" = "cn2" ]; then
 	echo "🚀 Setting up nginx proxy node with CN2 mode..."
@@ -31,19 +30,26 @@ echo ""
 bash script/install_shadowsocks.sh
 echo ""
 
+STREAMS_TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$STREAMS_TMP_DIR"' EXIT
+
+# Generate nginx stream configs from the public network registry
+"$PYTHON_BIN" script/registry.py write-nginx-streams --output-dir "$STREAMS_TMP_DIR"
+echo ""
+
 if [ "$MODE" = "cn2" ]; then
 	# Configure nginx excluding pin-server; it will be toggled by scheduler
-	bash script/copy_nginx_config.sh pin-server.conf
+	bash script/copy_nginx_config.sh "$STREAMS_TMP_DIR" pin-server.conf
 	echo ""
 else
 	# Configure nginx (all streams)
-	bash script/copy_nginx_config.sh
+	bash script/copy_nginx_config.sh "$STREAMS_TMP_DIR"
 	echo ""
 fi
 
 if [ "$MODE" = "cn2" ]; then
 	# Setup CN2 scheduler before (re)starting nginx, then (re)start nginx
-	bash script/enable_cn2_mode.sh
+	bash script/enable_cn2_mode.sh "$STREAMS_TMP_DIR"
 	echo ""
 else
 	# If previously in CN2 mode, disable its cron scheduler and clean up

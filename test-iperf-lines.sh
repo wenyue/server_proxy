@@ -1,19 +1,20 @@
 #!/bin/bash
-# Run iperf3 speed tests for every line listed in config/iperf-lines.csv.
+# Run iperf3 speed tests for every target listed in the network registry.
 
 set -u
 
-CONFIG_FILE="config/iperf-lines.csv"
+CONFIG_FILE=""
 DURATION="10"
 PARALLEL="1"
 RUN_REVERSE=1
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 usage() {
   cat <<EOF
 Usage: bash test-iperf-lines.sh [options]
 
 Options:
-  -c, --config FILE     CSV file with Name,Host,Port columns (default: config/iperf-lines.csv)
+  -c, --config FILE     CSV file with Name,Host,Port columns (default: generated from registry)
   -t, --time SECONDS    Test duration per direction (default: 10)
   -P, --parallel N      Parallel streams passed to iperf3 (default: 1)
       --no-reverse      Only test client -> server
@@ -56,9 +57,13 @@ if ! command -v iperf3 >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "Config file not found: $CONFIG_FILE" >&2
-  exit 1
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  else
+    echo "Python is required to read the network registry." >&2
+    exit 1
+  fi
 fi
 
 if ! [[ "$DURATION" =~ ^[0-9]+$ ]] || [ "$DURATION" -lt 1 ]; then
@@ -72,7 +77,17 @@ if ! [[ "$PARALLEL" =~ ^[0-9]+$ ]] || [ "$PARALLEL" -lt 1 ]; then
 fi
 
 echo "Running iperf3 line tests"
-echo "Config: $CONFIG_FILE"
+if [ -n "$CONFIG_FILE" ]; then
+  if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Config file not found: $CONFIG_FILE" >&2
+    exit 1
+  fi
+  CONFIG_SOURCE="$CONFIG_FILE"
+else
+  CONFIG_SOURCE="network registry"
+fi
+
+echo "Config: $CONFIG_SOURCE"
 echo "Duration: ${DURATION}s per direction"
 echo "Parallel streams: $PARALLEL"
 echo ""
@@ -124,7 +139,13 @@ while IFS=, read -r name host port extra; do
       failed=$((failed + 1))
     fi
   fi
-done < <(tail -n +2 "$CONFIG_FILE")
+done < <(
+  if [ -n "$CONFIG_FILE" ]; then
+    tail -n +2 "$CONFIG_FILE"
+  else
+    "$PYTHON_BIN" script/registry.py iperf-csv | tail -n +2
+  fi
+)
 
 if [ "$failed" -gt 0 ]; then
   echo "Completed $total line(s) with $failed failed test(s)." >&2

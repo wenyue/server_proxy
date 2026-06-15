@@ -21,10 +21,4 @@ if [ -f "/etc/nginx/streams/pin-server.off" ]; then
   sudo rm -f /etc/nginx/streams/pin-server.off
 fi
 
-# Make sure pin-server.conf exists (in case it was missing)
-if [ ! -f "/etc/nginx/streams/pin-server.conf" ] && [ -f "config/nginx/streams/pin-server.conf" ]; then
-  echo "   → Restoring /etc/nginx/streams/pin-server.conf from repository"
-  sudo cp -f config/nginx/streams/pin-server.conf /etc/nginx/streams/pin-server.conf
-fi
-
 echo "   ✅ CN2 scheduled mode disabled"

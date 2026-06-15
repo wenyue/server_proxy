@@ -3,19 +3,19 @@
 
 set -e
 
-CONFIG_FILE="${NETDATA_CONFIG_FILE:-config/netdata.conf}"
+SECRETS_FILE="${NETDATA_SECRETS_FILE:-config/secrets.conf}"
 
 echo "📊 Configuring Netdata Parent..."
 
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "   ✗ Missing $CONFIG_FILE" >&2
+if [ ! -f "$SECRETS_FILE" ]; then
+  echo "   ✗ Missing $SECRETS_FILE (copy config/secrets.example.conf and fill NETDATA_API_KEY)" >&2
   exit 1
 fi
 
 # shellcheck disable=SC1090
-. "$CONFIG_FILE"
+. "$SECRETS_FILE"
 
-: "${NETDATA_API_KEY:?NETDATA_API_KEY must be set in $CONFIG_FILE}"
+: "${NETDATA_API_KEY:?NETDATA_API_KEY must be set in $SECRETS_FILE}"
 
 bash script/install_netdata.sh
 

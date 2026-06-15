@@ -3,20 +3,31 @@
 
 set -e
 
-CONFIG_FILE="${NETDATA_CONFIG_FILE:-config/netdata.conf}"
+SECRETS_FILE="${NETDATA_SECRETS_FILE:-config/secrets.conf}"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 echo "📡 Configuring Netdata Child..."
 
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "   ✗ Missing $CONFIG_FILE" >&2
+if [ ! -f "$SECRETS_FILE" ]; then
+  echo "   ✗ Missing $SECRETS_FILE (copy config/secrets.example.conf and fill NETDATA_API_KEY)" >&2
   exit 1
 fi
 
 # shellcheck disable=SC1090
-. "$CONFIG_FILE"
+. "$SECRETS_FILE"
 
-: "${NETDATA_PARENT:?NETDATA_PARENT must be set in $CONFIG_FILE}"
-: "${NETDATA_API_KEY:?NETDATA_API_KEY must be set in $CONFIG_FILE}"
+: "${NETDATA_API_KEY:?NETDATA_API_KEY must be set in $SECRETS_FILE}"
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  else
+    echo "   ✗ Python is required to read the public network registry" >&2
+    exit 1
+  fi
+fi
+
+NETDATA_PARENT="$("$PYTHON_BIN" script/registry.py netdata-parent)"
 
 bash script/install_netdata.sh
 

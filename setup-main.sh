@@ -2,17 +2,16 @@
 # Setup script for the main Netdata Parent server.
 
 set -e
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
-CONFIG_FILE="${NETDATA_CONFIG_FILE:-config/netdata.conf}"
-
-if [ ! -f "$CONFIG_FILE" ]; then
-	echo "✗ Missing $CONFIG_FILE" >&2
-	exit 1
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+	if command -v python3 >/dev/null 2>&1; then
+		PYTHON_BIN="python3"
+	else
+		echo "✗ Python is required to read the public network registry" >&2
+		exit 1
+	fi
 fi
-
-# shellcheck disable=SC1090
-. "$CONFIG_FILE"
-: "${NETDATA_API_KEY:?NETDATA_API_KEY must be set in $CONFIG_FILE}"
 
 echo "🚀 Setting up main monitoring server..."
 echo ""
@@ -33,6 +32,8 @@ echo ""
 bash script/install_netdata_parent.sh
 echo ""
 
+NETDATA_PARENT="$("$PYTHON_BIN" script/registry.py netdata-parent)"
+
 # Display network information
 bash script/print_public_ip.sh
 echo ""
@@ -43,4 +44,4 @@ echo "📝 Next steps:"
 echo "   • Check Netdata: systemctl status netdata"
 echo "   • Check iPerf3: systemctl status iperf3-server"
 echo "   • Check Shadowsocks: sudo docker ps --filter name=otaku-shadowsocks"
-echo "   • Open Netdata: http://ipfs.otakuroom.net:19999"
+echo "   • Open Netdata: http://$NETDATA_PARENT"

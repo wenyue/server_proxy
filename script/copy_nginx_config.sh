@@ -5,24 +5,30 @@ set -e
 
 echo "📁 Configuring nginx..."
 
-STREAMS_SRC_DIR="config/nginx/streams"
+STREAMS_SRC_DIR="$1"
+shift || true
+
+if [ -z "$STREAMS_SRC_DIR" ]; then
+  echo "Usage: bash script/copy_nginx_config.sh <streams-source-dir> [excluded-stream.conf ...]" >&2
+  exit 2
+fi
 
 echo "   → Copying main nginx configuration"
-sudo cp -f config/nginx/nginx.conf /etc/nginx/nginx.conf
+sudo cp -f config/nginx.conf /etc/nginx/nginx.conf
 sudo mkdir -p /etc/nginx/streams
 
 echo "   → Cleaning up old stream configurations"
 sudo rm -f /etc/nginx/streams/* 2>/dev/null || true
 
-if [ -z "$1" ]; then
+if [ "$#" -eq 0 ]; then
   # Copy all stream configurations by default
   echo "   → Copying all stream configurations"
-  sudo cp -f $STREAMS_SRC_DIR/*.conf /etc/nginx/streams/
+  sudo cp -f "$STREAMS_SRC_DIR"/*.conf /etc/nginx/streams/
 else
   # Support excluding specific files
   echo "   → Copying stream configurations (excluding: $*)"
   shopt -s nullglob
-  for f in $STREAMS_SRC_DIR/*.conf; do
+  for f in "$STREAMS_SRC_DIR"/*.conf; do
     base=$(basename "$f")
     skip=0
     for excl in "$@"; do
