@@ -2,16 +2,7 @@
 # Setup script for the main Netdata Parent server.
 
 set -e
-PYTHON_BIN="${PYTHON_BIN:-python}"
-
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-	if command -v python3 >/dev/null 2>&1; then
-		PYTHON_BIN="python3"
-	else
-		echo "✗ Python is required to read the public network registry" >&2
-		exit 1
-	fi
-fi
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 echo "🚀 Setting up main monitoring server..."
 echo ""
@@ -19,6 +10,21 @@ echo ""
 echo "📦 Updating package indexes..."
 sudo apt update -qq
 echo ""
+
+if ! command -v python3 >/dev/null 2>&1; then
+	echo "   → Installing Python 3"
+	sudo apt install -y python3
+	echo ""
+fi
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+	if command -v python >/dev/null 2>&1; then
+		PYTHON_BIN="python"
+	else
+		echo "✗ Python is required to read the public network registry" >&2
+		exit 1
+	fi
+fi
 
 # Install Shadowsocks service
 bash script/install_shadowsocks.sh

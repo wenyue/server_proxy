@@ -13,6 +13,13 @@ else
   echo "   ✓ nginx already installed"
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "   → Installing Python 3"
+  sudo apt install -y python3
+else
+  echo "   ✓ Python 3 already available"
+fi
+
 if ! command -v ip >/dev/null 2>&1; then
   echo "   → Installing iproute2 package"
   sudo apt install -y iproute2
