@@ -29,6 +29,26 @@ exec "$@"'
 echo "systemctl $*" >> "$COMMAND_LOG"
 exit 0'
 
+  write_executable "$tmp/bin/apt" '#!/bin/sh
+echo "apt $*" >> "$COMMAND_LOG"
+exit 0'
+
+  write_executable "$tmp/bin/nginx" '#!/bin/sh
+echo "nginx $*" >> "$COMMAND_LOG"
+exit 0'
+
+  write_executable "$tmp/bin/openssl" '#!/bin/sh
+echo "openssl $*" >> "$COMMAND_LOG"
+if [ "$1" = "rand" ]; then
+  echo "generatedpassword"
+  exit 0
+fi
+if [ "$1" = "passwd" ]; then
+  printf "%s\n" "$""apr1$""testhash"
+  exit 0
+fi
+exit 0'
+
   write_executable "$tmp/bin/bash" '#!/bin/sh
 if [ "$1" = "script/install_netdata.sh" ]; then
   echo "install_netdata" >> "$COMMAND_LOG"
@@ -43,19 +63,50 @@ test_parent_allows_external_web_and_accepts_child_streams() {
   trap 'rm -rf "$tmp"' RETURN
   setup_common_stubs "$tmp"
   printf '[global]\n    run as user = netdata\n\n[web]\n    bind to = localhost\n' > "$tmp/netdata/netdata.conf"
+  mkdir -p "$tmp/nginx/conf.d"
+
+  write_executable "$tmp/bin/python" '#!/bin/sh
+if [ "$1" = "script/registry.py" ] && [ "$2" = "netdata-parent" ]; then
+  echo "67.215.234.162:19999"
+  exit 0
+fi
+exit 1'
 
   COMMAND_LOG="$tmp/commands.log" \
     PATH="$tmp/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     NETDATA_SECRETS_FILE="$tmp/secrets.conf" \
     NETDATA_CONFIG_DIR="$tmp/netdata" \
+    NETDATA_NGINX_CONF="$tmp/nginx/conf.d/netdata.conf" \
+    NETDATA_HTPASSWD="$tmp/nginx/netdata.htpasswd" \
+    NETDATA_WEB_USER="admin" \
+    NETDATA_DASHBOARD_PORT="19999" \
+    NETDATA_INTERNAL_DASHBOARD_PORT="19997" \
+    NETDATA_STREAM_PORT="19998" \
+    PYTHON_BIN=python \
     /bin/bash "$ROOT/script/install_netdata_parent.sh" > "$tmp/stdout" 2> "$tmp/stderr" ||
     fail "parent installer failed: $(cat "$tmp/stderr") $(cat "$tmp/stdout")"
 
   cmp -s "$tmp/netdata/netdata.conf" - <<'EOF' ||
 [web]
-    bind to = *
+    bind to = 127.0.0.1:19997=dashboard|registry|badges|management|netdata.conf *:19998=streaming
 EOF
     fail "expected parent installer to own the full netdata.conf"
+  grep -q "auth_basic_user_file .*netdata.htpasswd" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent nginx reverse proxy to enable basic auth"
+  grep -q "server 127.0.0.1:19997;" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent nginx reverse proxy to use the internal dashboard port"
+  grep -q "listen 19999;" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent nginx reverse proxy to listen on configured port"
+  grep -q "proxy_pass http://netdata_parent;" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent nginx reverse proxy to proxy to Netdata"
+  grep -q 'admin:$apr1\$testhash' "$tmp/nginx/netdata.htpasswd" ||
+    fail "expected parent nginx htpasswd file"
+  grep -q "nginx -t" "$tmp/commands.log" ||
+    fail "expected nginx config validation"
+  grep -q "http://admin:generatedpassword@67.215.234.162:19999/" "$tmp/stdout" ||
+    fail "expected generated parent dashboard URL to be printed"
+  grep -q "generatedpassword" "$tmp/stdout" ||
+    fail "expected generated parent dashboard password to be printed"
   grep -q "\\[11111111-2222-3333-4444-555555555555\\]" "$tmp/netdata/stream.conf" ||
     fail "expected parent stream API key section"
   grep -q "enabled = yes" "$tmp/netdata/stream.conf" ||
@@ -79,6 +130,7 @@ exit 1'
     PATH="$tmp/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     NETDATA_SECRETS_FILE="$tmp/secrets.conf" \
     NETDATA_CONFIG_DIR="$tmp/netdata" \
+    NETDATA_STREAM_PORT="19998" \
     PYTHON_BIN=python \
     /bin/bash "$ROOT/script/install_netdata_child.sh" > "$tmp/stdout" 2> "$tmp/stderr" ||
     fail "child installer failed: $(cat "$tmp/stderr") $(cat "$tmp/stdout")"
@@ -88,7 +140,7 @@ exit 1'
     bind to = localhost
 EOF
     fail "expected child installer to own the full netdata.conf"
-  grep -q "destination = 67.215.234.162:19999" "$tmp/netdata/stream.conf" ||
+  grep -q "destination = 67.215.234.162:19998" "$tmp/netdata/stream.conf" ||
     fail "expected child to stream to registry parent"
   grep -q "api key = 11111111-2222-3333-4444-555555555555" "$tmp/netdata/stream.conf" ||
     fail "expected child stream API key"

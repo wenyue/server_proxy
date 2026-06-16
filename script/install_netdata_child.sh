@@ -5,6 +5,7 @@ set -e
 
 SECRETS_FILE="${NETDATA_SECRETS_FILE:-config/secrets.conf}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
+NETDATA_STREAM_PORT="${NETDATA_STREAM_PORT:-19998}"
 
 echo "📡 Configuring Netdata Child..."
 
@@ -28,6 +29,7 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 fi
 
 NETDATA_PARENT="$("$PYTHON_BIN" script/registry.py netdata-parent)"
+NETDATA_PARENT="${NETDATA_PARENT%:*}:$NETDATA_STREAM_PORT"
 
 bash script/install_netdata.sh
 
