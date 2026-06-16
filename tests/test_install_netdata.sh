@@ -23,6 +23,9 @@ setup_common_stubs() {
 
   write_executable "$tmp/bin/sudo" '#!/bin/sh
 echo "sudo $*" >> "$COMMAND_LOG"
+if [ "$1" = "chown" ]; then
+  exit 0
+fi
 exec "$@"'
 
   write_executable "$tmp/bin/systemctl" '#!/bin/sh
@@ -80,7 +83,6 @@ exit 1'
     NETDATA_HTPASSWD="$tmp/nginx/netdata.htpasswd" \
     NETDATA_WEB_USER="admin" \
     NETDATA_DASHBOARD_PORT="19999" \
-    NETDATA_INTERNAL_DASHBOARD_PORT="19997" \
     NETDATA_STREAM_PORT="19998" \
     PYTHON_BIN=python \
     /bin/bash "$ROOT/script/install_netdata_parent.sh" > "$tmp/stdout" 2> "$tmp/stderr" ||
@@ -88,19 +90,23 @@ exit 1'
 
   cmp -s "$tmp/netdata/netdata.conf" - <<'EOF' ||
 [web]
-    bind to = 127.0.0.1:19997=dashboard|registry|badges|management|netdata.conf *:19998=streaming
+    bind to = 127.0.0.1:19999=dashboard|registry|badges|management|netdata.conf *:19998=streaming
 EOF
     fail "expected parent installer to own the full netdata.conf"
   grep -q "auth_basic_user_file .*netdata.htpasswd" "$tmp/nginx/conf.d/netdata.conf" ||
     fail "expected parent nginx reverse proxy to enable basic auth"
-  grep -q "server 127.0.0.1:19997;" "$tmp/nginx/conf.d/netdata.conf" ||
-    fail "expected parent nginx reverse proxy to use the internal dashboard port"
-  grep -q "listen 19999;" "$tmp/nginx/conf.d/netdata.conf" ||
-    fail "expected parent nginx reverse proxy to listen on configured port"
+  grep -q "server 127.0.0.1:19999;" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent nginx reverse proxy to use the local dashboard port"
+  grep -q "listen 67.215.234.162:19999;" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent nginx reverse proxy to listen on the public parent address"
+  ! grep -q "19997" "$tmp/netdata/netdata.conf" "$tmp/nginx/conf.d/netdata.conf" ||
+    fail "expected parent installer not to use legacy internal dashboard port 19997"
   grep -q "proxy_pass http://netdata_parent;" "$tmp/nginx/conf.d/netdata.conf" ||
     fail "expected parent nginx reverse proxy to proxy to Netdata"
   grep -q 'admin:$apr1\$testhash' "$tmp/nginx/netdata.htpasswd" ||
     fail "expected parent nginx htpasswd file"
+  grep -q "chown root:www-data $tmp/nginx/netdata.htpasswd" "$tmp/commands.log" ||
+    fail "expected htpasswd file to be readable by nginx worker group"
   grep -q "nginx -t" "$tmp/commands.log" ||
     fail "expected nginx config validation"
   grep -q "http://admin:generatedpassword@67.215.234.162:19999/" "$tmp/stdout" ||

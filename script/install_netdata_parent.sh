@@ -6,7 +6,6 @@ set -e
 SECRETS_FILE="${NETDATA_SECRETS_FILE:-config/secrets.conf}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 NETDATA_DASHBOARD_PORT="${NETDATA_DASHBOARD_PORT:-19999}"
-NETDATA_INTERNAL_DASHBOARD_PORT="${NETDATA_INTERNAL_DASHBOARD_PORT:-19997}"
 NETDATA_STREAM_PORT="${NETDATA_STREAM_PORT:-19998}"
 NETDATA_WEB_USER="${NETDATA_WEB_USER:-netdata}"
 NETDATA_NGINX_CONF="${NETDATA_NGINX_CONF:-/etc/nginx/conf.d/netdata.conf}"
@@ -70,11 +69,12 @@ NETDATA_CONF="$NETDATA_CONFIG_DIR/netdata.conf"
 STREAM_CONF="$NETDATA_CONFIG_DIR/stream.conf"
 NETDATA_PARENT="$("$PYTHON_BIN" script/registry.py netdata-parent)"
 NETDATA_PROXY_HOST="${NETDATA_PROXY_HOST:-${NETDATA_PARENT%:*}}"
+NETDATA_NGINX_LISTEN_HOST="${NETDATA_NGINX_LISTEN_HOST:-$NETDATA_PROXY_HOST}"
 
 echo "   → Writing Parent web configuration to $NETDATA_CONF"
 sudo tee "$NETDATA_CONF" >/dev/null <<EOF
 [web]
-    bind to = 127.0.0.1:$NETDATA_INTERNAL_DASHBOARD_PORT=dashboard|registry|badges|management|netdata.conf *:$NETDATA_STREAM_PORT=streaming
+    bind to = 127.0.0.1:$NETDATA_DASHBOARD_PORT=dashboard|registry|badges|management|netdata.conf *:$NETDATA_STREAM_PORT=streaming
 EOF
 
 echo "   → Writing Parent stream configuration to $STREAM_CONF"
@@ -86,19 +86,19 @@ EOF
 echo "   → Writing nginx Basic Auth credentials to $NETDATA_HTPASSWD"
 sudo mkdir -p "$(dirname "$NETDATA_HTPASSWD")"
 printf '%s:%s\n' "$NETDATA_WEB_USER" "$(openssl passwd -apr1 "$NETDATA_WEB_PASSWORD")" | sudo tee "$NETDATA_HTPASSWD" >/dev/null
+sudo chown root:www-data "$NETDATA_HTPASSWD"
 sudo chmod 640 "$NETDATA_HTPASSWD"
 
 echo "   → Writing nginx reverse proxy configuration to $NETDATA_NGINX_CONF"
 sudo mkdir -p "$(dirname "$NETDATA_NGINX_CONF")"
 sudo tee "$NETDATA_NGINX_CONF" >/dev/null <<EOF
 upstream netdata_parent {
-    server 127.0.0.1:$NETDATA_INTERNAL_DASHBOARD_PORT;
+    server 127.0.0.1:$NETDATA_DASHBOARD_PORT;
     keepalive 64;
 }
 
 server {
-    listen $NETDATA_DASHBOARD_PORT;
-    listen [::]:$NETDATA_DASHBOARD_PORT;
+    listen $NETDATA_NGINX_LISTEN_HOST:$NETDATA_DASHBOARD_PORT;
     server_name _;
 
     auth_basic "Netdata";
