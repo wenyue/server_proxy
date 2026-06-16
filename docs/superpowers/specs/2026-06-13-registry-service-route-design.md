@@ -29,7 +29,6 @@ Redesign the public network registry so it remains version `1` while clearly sep
   "nodes": [
     {
       "id": "pin-server-all",
-      "host": "ipfs.otakuroom.net",
       "ipv4": "67.215.234.162",
       "ipv6": null,
       "services": {
@@ -40,7 +39,6 @@ Redesign the public network registry so it remains version `1` while clearly sep
     },
     {
       "id": "user-server",
-      "host": null,
       "ipv4": "8.219.123.14",
       "ipv6": null,
       "services": {
@@ -53,7 +51,6 @@ Redesign the public network registry so it remains version `1` while clearly sep
     },
     {
       "id": "proxy-us-0",
-      "host": null,
       "ipv4": "23.94.212.231",
       "ipv6": null,
       "roles": ["edge-proxy"]
@@ -94,9 +91,9 @@ Redesign the public network registry so it remains version `1` while clearly sep
 
 The registry does not store discovery defaults. Commands choose address output for their use case:
 
-- Direct endpoint preferred address: `host`, then `ipv4`, then `ipv6`.
+- Direct endpoint preferred address: `ipv4`, then `ipv6`.
 - Edge endpoint addresses: include each available `ipv4` and `ipv6` for the entry node.
-- `pin-proxy`: include IP addresses only, not hostnames.
+- `pin-proxy`: include IP addresses only.
 
 ## Removed Fields
 

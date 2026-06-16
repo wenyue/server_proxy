@@ -19,16 +19,27 @@ fi
 
 bash script/install_netdata.sh
 
-if [ -d /etc/netdata ]; then
+if [ -n "${NETDATA_CONFIG_DIR:-}" ]; then
+  :
+elif [ -d /etc/netdata ]; then
   NETDATA_CONFIG_DIR="/etc/netdata"
 elif [ -d /opt/netdata/etc/netdata ]; then
   NETDATA_CONFIG_DIR="/opt/netdata/etc/netdata"
-else
+fi
+
+if [ ! -d "${NETDATA_CONFIG_DIR:-}" ]; then
   echo "   ✗ Netdata config directory not found" >&2
   exit 1
 fi
 
+NETDATA_CONF="$NETDATA_CONFIG_DIR/netdata.conf"
 STREAM_CONF="$NETDATA_CONFIG_DIR/stream.conf"
+
+echo "   → Writing Parent web configuration to $NETDATA_CONF"
+sudo tee "$NETDATA_CONF" >/dev/null <<EOF
+[web]
+    bind to = *
+EOF
 
 echo "   → Writing Parent stream configuration to $STREAM_CONF"
 sudo tee "$STREAM_CONF" >/dev/null <<EOF

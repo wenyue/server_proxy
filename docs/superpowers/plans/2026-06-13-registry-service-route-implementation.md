@@ -53,7 +53,7 @@ def node_services(node):
 def direct_endpoint(registry, node_id, service):
     node = node_map(registry)[node_id]
     port = node_services(node)[service]
-    return preferred_public_address(node), port
+    return preferred_ip_address(node), port
 ```
 
 Add route validation so each route has `id`, `service`, `entry_nodes`, `listen_port`, `backend_node`, and `protocols`, and so `backend_node.services[service]` exists.

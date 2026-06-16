@@ -50,7 +50,6 @@ class RouteBackendTests(unittest.TestCase):
             "nodes": [
                 {
                     "id": "pin-server-all",
-                    "host": "ipfs.otakuroom.net",
                     "ipv4": "67.215.234.162",
                     "services": {"netdata": 19999, "ai_chat": 2084},
                 },
@@ -75,6 +74,46 @@ class RouteBackendTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "node user-server does not define service ai_chat"):
             registry.validate(model)
+
+    def test_node_host_field_is_ignored(self):
+        model = {
+            "version": 1,
+            "services": {"netdata": {"parent": {"node": "pin-server-all"}}},
+            "nodes": [
+                {
+                    "id": "pin-server-all",
+                    "host": "ipfs.otakuroom.net",
+                    "ipv4": "67.215.234.162",
+                    "services": {"netdata": 19999, "iperf": 5201},
+                },
+            ],
+            "edge_routes": [],
+        }
+
+        registry.validate(model)
+        self.assertEqual(
+            registry.iperf_csv(model),
+            "Name,Host,Port\npin-server-all,67.215.234.162,5201\n",
+        )
+
+    def test_iperf_csv_uses_node_ip_address_for_direct_endpoint(self):
+        model = {
+            "version": 1,
+            "services": {"netdata": {"parent": {"node": "pin-server-all"}}},
+            "nodes": [
+                {
+                    "id": "pin-server-all",
+                    "ipv4": "67.215.234.162",
+                    "services": {"netdata": 19999, "iperf": 5201},
+                },
+            ],
+            "edge_routes": [],
+        }
+
+        self.assertEqual(
+            registry.iperf_csv(model),
+            "Name,Host,Port\npin-server-all,67.215.234.162,5201\n",
+        )
 
 
 if __name__ == "__main__":

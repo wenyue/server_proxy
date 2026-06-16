@@ -34,10 +34,6 @@ def node_map(registry):
     return {node["id"]: node for node in registry["nodes"]}
 
 
-def public_address(node):
-    return node.get("host") or node.get("ipv4") or node.get("ipv6")
-
-
 def node_services(node):
     return node.get("services") or {}
 
@@ -53,16 +49,14 @@ def ip_addresses(node):
 
 def select_address(node, node_id, address=None, require_ip=False):
     if address:
-        if address == "public":
-            host = public_address(node)
-        elif address in ("host", "ipv4", "ipv6"):
+        if address in ("ipv4", "ipv6"):
             host = node.get(address)
         else:
             raise ValueError(f"node {node_id} has invalid address selector: {address}")
     else:
-        host = node.get("ipv4") if require_ip else public_address(node)
+        host = node.get("ipv4") or node.get("ipv6")
     if not host:
-        label = address or ("ipv4" if require_ip else "public")
+        label = address or "ip"
         raise ValueError(f"node {node_id} has no usable {label} address")
     return host
 
@@ -160,8 +154,8 @@ def validate(registry):
         if node_id in seen:
             raise ValueError(f"duplicate node id: {node_id}")
         seen.add(node_id)
-        if not (node.get("host") or node.get("ipv4") or node.get("ipv6")):
-            raise ValueError(f"node {node_id} must define host, ipv4, or ipv6")
+        if not (node.get("ipv4") or node.get("ipv6")):
+            raise ValueError(f"node {node_id} must define ipv4 or ipv6")
         services = node.get("services", {})
         if services is None:
             services = {}
