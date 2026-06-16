@@ -34,7 +34,10 @@ if ($connectTimeout -ne "5000") {
     exit 2
 }
 
-if ($hostName -eq "203.0.113.10" -and -not $reverse) {
+if ($hostName -eq "198.51.100.20") {
+    [Console]::Error.WriteLine("iperf3: error - control socket has closed unexpectedly")
+    exit 1
+} elseif ($hostName -eq "203.0.113.10" -and -not $reverse) {
     Write-Output "[  5]   0.00-1.00   sec  12.0 MBytes   100 Mbits/sec  receiver"
 } elseif ($hostName -eq "203.0.113.10") {
     Write-Output "[  5]   0.00-1.00   sec  24.0 MBytes   200 Mbits/sec  receiver"
@@ -73,6 +76,33 @@ node-b,2001:db8::1,5201
     }
     if ($output -notmatch "node-b\s+2001:db8::1\s+1\.00 Gbits/sec\s+600 Mbits/sec") {
         throw "missing node-b speeds`n$output"
+    }
+
+    $failureTargets = Join-Path $tmpDir "failure-targets.csv"
+    Set-Content -LiteralPath $failureTargets -Encoding UTF8 -Value @'
+Name,Host,Port
+node-a,203.0.113.10,5201
+node-c,198.51.100.20,5201
+'@
+    $lineFailureOutput = & pwsh -NoLogo -NoProfile -File $scriptPath -Config $failureTargets -Time 1 -ConnectTimeout 5000 2>&1 | Out-String
+    $lineFailureStatus = $LASTEXITCODE
+    if ($lineFailureStatus -eq 0) {
+        throw "expected line failure run to exit nonzero"
+    }
+    if ($lineFailureOutput -notmatch "iperf3: error - control socket has closed unexpectedly") {
+        throw "missing native stderr from failed iperf3 run`n$lineFailureOutput"
+    }
+    if ($lineFailureOutput -notmatch "Summary:") {
+        throw "missing summary after failed iperf3 run`n$lineFailureOutput"
+    }
+    if ($lineFailureOutput -notmatch "node-c\s+198\.51\.100\.20\s+FAILED\s+FAILED") {
+        throw "missing node-c failure summary`n$lineFailureOutput"
+    }
+    if ($lineFailureOutput -notmatch "Completed 2 line\(s\) with 2 failed test\(s\)\.") {
+        throw "missing aggregate failure count`n$lineFailureOutput"
+    }
+    if ($lineFailureOutput -match "NativeCommandError|At .*test-iperf-lines\.ps1|CategoryInfo|FullyQualifiedErrorId") {
+        throw "failed iperf3 run leaked PowerShell error metadata`n$lineFailureOutput"
     }
 
     Set-Content -LiteralPath (Join-Path $tmpDir "python.ps1") -Encoding UTF8 -Value @'

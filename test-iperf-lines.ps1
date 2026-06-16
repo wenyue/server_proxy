@@ -126,8 +126,25 @@ function Invoke-IperfLineTest {
     }
 
     $global:LASTEXITCODE = 0
-    $output = & iperf3 @args 2>&1
-    $status = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    $previousNativeErrorPreference = $null
+    $hasNativeErrorPreference = Test-Path Variable:\PSNativeCommandUseErrorActionPreference
+    if ($hasNativeErrorPreference) {
+        $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+    }
+    try {
+        $ErrorActionPreference = "Continue"
+        if ($hasNativeErrorPreference) {
+            $PSNativeCommandUseErrorActionPreference = $false
+        }
+        $output = & iperf3 @args 2>&1
+        $status = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+        if ($hasNativeErrorPreference) {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+        }
+    }
     $output | ForEach-Object { Write-Host $_ }
     if ($status -eq 0) {
         Write-Host "[$Name] $Direction OK"
@@ -205,7 +222,8 @@ if ($summary.Count -gt 0) {
 }
 
 if ($failed -gt 0) {
-    Write-Error "Completed $($lines.Count) line(s) with $failed failed test(s)."
+    [Console]::Error.WriteLine("Completed $($lines.Count) line(s) with $failed failed test(s).")
+    exit 1
 }
 
 Write-Host "Completed $($lines.Count) line(s) successfully."
