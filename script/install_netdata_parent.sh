@@ -45,9 +45,16 @@ if ! command -v openssl >/dev/null 2>&1; then
 fi
 
 GENERATED_NETDATA_WEB_PASSWORD=0
-if [ -z "${NETDATA_WEB_PASSWORD:-}" ]; then
+PRESERVED_NETDATA_HTPASSWD=0
+KNOWN_NETDATA_WEB_PASSWORD=0
+if [ -n "${NETDATA_WEB_PASSWORD:-}" ]; then
+  KNOWN_NETDATA_WEB_PASSWORD=1
+elif [ -s "$NETDATA_HTPASSWD" ]; then
+  PRESERVED_NETDATA_HTPASSWD=1
+else
   NETDATA_WEB_PASSWORD="$(openssl rand -hex 16)"
   GENERATED_NETDATA_WEB_PASSWORD=1
+  KNOWN_NETDATA_WEB_PASSWORD=1
 fi
 
 bash script/install_netdata.sh
@@ -83,9 +90,13 @@ sudo tee "$STREAM_CONF" >/dev/null <<EOF
     enabled = yes
 EOF
 
-echo "   → Writing nginx Basic Auth credentials to $NETDATA_HTPASSWD"
-sudo mkdir -p "$(dirname "$NETDATA_HTPASSWD")"
-printf '%s:%s\n' "$NETDATA_WEB_USER" "$(openssl passwd -apr1 "$NETDATA_WEB_PASSWORD")" | sudo tee "$NETDATA_HTPASSWD" >/dev/null
+if [ "$PRESERVED_NETDATA_HTPASSWD" -eq 1 ]; then
+  echo "   → Preserving existing nginx Basic Auth credentials at $NETDATA_HTPASSWD"
+else
+  echo "   → Writing nginx Basic Auth credentials to $NETDATA_HTPASSWD"
+  sudo mkdir -p "$(dirname "$NETDATA_HTPASSWD")"
+  printf '%s:%s\n' "$NETDATA_WEB_USER" "$(openssl passwd -apr1 "$NETDATA_WEB_PASSWORD")" | sudo tee "$NETDATA_HTPASSWD" >/dev/null
+fi
 sudo chown root:www-data "$NETDATA_HTPASSWD"
 sudo chmod 640 "$NETDATA_HTPASSWD"
 
@@ -127,8 +138,16 @@ sudo nginx -t
 sudo systemctl restart nginx
 
 echo "   ✅ Netdata Parent accepts Child streams on port $NETDATA_STREAM_PORT and serves the dashboard through nginx on port $NETDATA_DASHBOARD_PORT"
-echo "      Netdata dashboard URL: http://$NETDATA_WEB_USER:$NETDATA_WEB_PASSWORD@$NETDATA_PROXY_HOST:$NETDATA_DASHBOARD_PORT/"
 echo "      Netdata dashboard user: $NETDATA_WEB_USER"
+if [ "$KNOWN_NETDATA_WEB_PASSWORD" -eq 1 ]; then
+  echo "      Netdata dashboard URL: http://$NETDATA_WEB_USER:$NETDATA_WEB_PASSWORD@$NETDATA_PROXY_HOST:$NETDATA_DASHBOARD_PORT/"
+fi
 if [ "$GENERATED_NETDATA_WEB_PASSWORD" -eq 1 ]; then
   echo "      Netdata dashboard generated password: $NETDATA_WEB_PASSWORD"
+elif [ "$KNOWN_NETDATA_WEB_PASSWORD" -eq 1 ]; then
+  echo "      Netdata dashboard password: $NETDATA_WEB_PASSWORD"
+else
+  echo "      Netdata dashboard URL: http://$NETDATA_PROXY_HOST:$NETDATA_DASHBOARD_PORT/"
+  echo "      Netdata dashboard password is already configured in $NETDATA_HTPASSWD"
+  echo "      Set NETDATA_WEB_PASSWORD to print the plaintext password"
 fi
