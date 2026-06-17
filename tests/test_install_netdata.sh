@@ -113,8 +113,6 @@ EOF
     fail "expected generated parent dashboard URL to be printed"
   grep -q "generatedpassword" "$tmp/stdout" ||
     fail "expected generated parent dashboard password to be printed"
-  grep -q '^generatedpassword$' "$tmp/nginx/netdata.htpasswd.password" ||
-    fail "expected generated parent dashboard password to be saved"
   grep -q "\\[11111111-2222-3333-4444-555555555555\\]" "$tmp/netdata/stream.conf" ||
     fail "expected parent stream API key section"
   grep -q "enabled = yes" "$tmp/netdata/stream.conf" ||
@@ -149,24 +147,21 @@ exit 1'
 
   ! grep -q "openssl rand" "$tmp/commands.log" ||
     fail "expected configured parent dashboard password not to call openssl rand"
-  grep -q "http://admin:existingpassword@67.215.234.162:19999/" "$tmp/stdout" ||
-    fail "expected configured parent dashboard URL to include the existing password"
-  grep -q "Netdata dashboard password: existingpassword" "$tmp/stdout" ||
-    fail "expected configured parent dashboard password to be printed"
+  ! grep -q "existingpassword" "$tmp/stdout" ||
+    fail "expected configured parent dashboard password not to be printed"
+  grep -q "http://67.215.234.162:19999/" "$tmp/stdout" ||
+    fail "expected configured parent dashboard URL not to include credentials"
   grep -q 'admin:$apr1\$testhash' "$tmp/nginx/netdata.htpasswd" ||
     fail "expected configured parent dashboard password to be written to htpasswd"
-  grep -q '^existingpassword$' "$tmp/nginx/netdata.htpasswd.password" ||
-    fail "expected configured parent dashboard password to be saved for future runs"
 }
 
-test_parent_reuses_saved_web_password_and_prints_it() {
+test_parent_preserves_existing_htpasswd_without_printing_password() {
   local tmp
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
   setup_common_stubs "$tmp"
   mkdir -p "$tmp/nginx/conf.d"
   printf 'admin:old-hash\n' > "$tmp/nginx/netdata.htpasswd"
-  printf 'savedpassword\n' > "$tmp/nginx/netdata.htpasswd.password"
 
   write_executable "$tmp/bin/python" '#!/bin/sh
 if [ "$1" = "script/registry.py" ] && [ "$2" = "netdata-parent" ]; then
@@ -187,49 +182,17 @@ exit 1'
     fail "parent installer with existing htpasswd failed: $(cat "$tmp/stderr") $(cat "$tmp/stdout")"
 
   ! grep -q "openssl rand" "$tmp/commands.log" ||
-    fail "expected saved parent dashboard password not to call openssl rand"
-  grep -q "http://admin:savedpassword@67.215.234.162:19999/" "$tmp/stdout" ||
-    fail "expected saved parent dashboard URL to include the existing password"
-  grep -q "Netdata dashboard password: savedpassword" "$tmp/stdout" ||
-    fail "expected saved parent dashboard password to be printed"
-  grep -q 'admin:$apr1\$testhash' "$tmp/nginx/netdata.htpasswd" ||
-    fail "expected saved parent dashboard password to be written to htpasswd"
-}
-
-test_parent_refuses_existing_htpasswd_without_plaintext_password() {
-  local tmp
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
-  setup_common_stubs "$tmp"
-  mkdir -p "$tmp/nginx/conf.d"
-  printf 'admin:old-hash\n' > "$tmp/nginx/netdata.htpasswd"
-
-  write_executable "$tmp/bin/python" '#!/bin/sh
-if [ "$1" = "script/registry.py" ] && [ "$2" = "netdata-parent" ]; then
-  echo "67.215.234.162:19999"
-  exit 0
-fi
-exit 1'
-
-  COMMAND_LOG="$tmp/commands.log" \
-    PATH="$tmp/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-    NETDATA_SECRETS_FILE="$tmp/secrets.conf" \
-    NETDATA_CONFIG_DIR="$tmp/netdata" \
-    NETDATA_NGINX_CONF="$tmp/nginx/conf.d/netdata.conf" \
-    NETDATA_HTPASSWD="$tmp/nginx/netdata.htpasswd" \
-    NETDATA_WEB_USER="admin" \
-    PYTHON_BIN=python \
-    /bin/bash "$ROOT/script/install_netdata_parent.sh" > "$tmp/stdout" 2> "$tmp/stderr" &&
-    fail "expected parent installer to fail when existing htpasswd has no plaintext password"
-
-  ! grep -q "openssl rand" "$tmp/commands.log" ||
-    fail "expected existing htpasswd without plaintext not to generate a new dashboard password"
+    fail "expected existing htpasswd not to generate a new dashboard password"
   ! grep -q "openssl passwd" "$tmp/commands.log" ||
-    fail "expected existing htpasswd without plaintext not to rewrite dashboard credentials"
-  grep -q "Existing Netdata htpasswd found at $tmp/nginx/netdata.htpasswd" "$tmp/stderr" ||
-    fail "expected existing htpasswd error to be printed"
-  grep -q "Set NETDATA_WEB_PASSWORD or create $tmp/nginx/netdata.htpasswd.password" "$tmp/stderr" ||
-    fail "expected plaintext recovery guidance to be printed"
+    fail "expected existing htpasswd not to rewrite dashboard credentials"
+  cmp -s "$tmp/nginx/netdata.htpasswd" - <<'EOF' ||
+admin:old-hash
+EOF
+    fail "expected existing htpasswd credentials to be preserved"
+  grep -q "http://67.215.234.162:19999/" "$tmp/stdout" ||
+    fail "expected existing htpasswd dashboard URL not to include credentials"
+  ! grep -q "Netdata dashboard password:" "$tmp/stdout" ||
+    fail "expected existing htpasswd password not to be printed"
 }
 
 test_child_keeps_local_web_and_streams_to_parent() {
@@ -394,8 +357,7 @@ EOF
 
 test_parent_allows_external_web_and_accepts_child_streams
 test_parent_reuses_configured_web_password_and_prints_it
-test_parent_reuses_saved_web_password_and_prints_it
-test_parent_refuses_existing_htpasswd_without_plaintext_password
+test_parent_preserves_existing_htpasswd_without_printing_password
 test_child_keeps_local_web_and_streams_to_parent
 test_child_refresh_updates_existing_config_and_is_idempotent
 test_registry_refresh_runs_netdata_refresh

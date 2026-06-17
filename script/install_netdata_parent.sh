@@ -10,7 +10,6 @@ NETDATA_STREAM_PORT="${NETDATA_STREAM_PORT:-19998}"
 NETDATA_WEB_USER="${NETDATA_WEB_USER:-netdata}"
 NETDATA_NGINX_CONF="${NETDATA_NGINX_CONF:-/etc/nginx/conf.d/netdata.conf}"
 NETDATA_HTPASSWD="${NETDATA_HTPASSWD:-/etc/nginx/netdata.htpasswd}"
-NETDATA_WEB_PASSWORD_FILE="${NETDATA_WEB_PASSWORD_FILE:-$NETDATA_HTPASSWD.password}"
 
 echo "📊 Configuring Netdata Parent..."
 
@@ -46,25 +45,15 @@ if ! command -v openssl >/dev/null 2>&1; then
 fi
 
 GENERATED_NETDATA_WEB_PASSWORD=0
+WRITE_NETDATA_HTPASSWD=0
 if [ -n "${NETDATA_WEB_PASSWORD:-}" ]; then
-  :
-elif [ -s "$NETDATA_WEB_PASSWORD_FILE" ]; then
-  if [ -r "$NETDATA_WEB_PASSWORD_FILE" ]; then
-    IFS= read -r NETDATA_WEB_PASSWORD < "$NETDATA_WEB_PASSWORD_FILE"
-  else
-    NETDATA_WEB_PASSWORD="$(sudo sed -n '1p' "$NETDATA_WEB_PASSWORD_FILE")"
-  fi
-  if [ -z "$NETDATA_WEB_PASSWORD" ]; then
-    echo "   ✗ Netdata dashboard password file is empty: $NETDATA_WEB_PASSWORD_FILE" >&2
-    exit 1
-  fi
+  WRITE_NETDATA_HTPASSWD=1
 elif [ -s "$NETDATA_HTPASSWD" ]; then
-  echo "   ✗ Existing Netdata htpasswd found at $NETDATA_HTPASSWD, but the plaintext password is not available." >&2
-  echo "     Set NETDATA_WEB_PASSWORD or create $NETDATA_WEB_PASSWORD_FILE so the current password can be printed." >&2
-  exit 1
+  :
 else
   NETDATA_WEB_PASSWORD="$(openssl rand -hex 16)"
   GENERATED_NETDATA_WEB_PASSWORD=1
+  WRITE_NETDATA_HTPASSWD=1
 fi
 
 bash script/install_netdata.sh
@@ -100,17 +89,15 @@ sudo tee "$STREAM_CONF" >/dev/null <<EOF
     enabled = yes
 EOF
 
-echo "   → Writing nginx Basic Auth credentials to $NETDATA_HTPASSWD"
-sudo mkdir -p "$(dirname "$NETDATA_HTPASSWD")"
-printf '%s:%s\n' "$NETDATA_WEB_USER" "$(openssl passwd -apr1 "$NETDATA_WEB_PASSWORD")" | sudo tee "$NETDATA_HTPASSWD" >/dev/null
+if [ "$WRITE_NETDATA_HTPASSWD" -eq 1 ]; then
+  echo "   → Writing nginx Basic Auth credentials to $NETDATA_HTPASSWD"
+  sudo mkdir -p "$(dirname "$NETDATA_HTPASSWD")"
+  printf '%s:%s\n' "$NETDATA_WEB_USER" "$(openssl passwd -apr1 "$NETDATA_WEB_PASSWORD")" | sudo tee "$NETDATA_HTPASSWD" >/dev/null
+else
+  echo "   → Keeping existing nginx Basic Auth credentials at $NETDATA_HTPASSWD"
+fi
 sudo chown root:www-data "$NETDATA_HTPASSWD"
 sudo chmod 640 "$NETDATA_HTPASSWD"
-
-echo "   → Saving Netdata dashboard password to $NETDATA_WEB_PASSWORD_FILE"
-sudo mkdir -p "$(dirname "$NETDATA_WEB_PASSWORD_FILE")"
-printf '%s\n' "$NETDATA_WEB_PASSWORD" | sudo tee "$NETDATA_WEB_PASSWORD_FILE" >/dev/null
-sudo chown root:root "$NETDATA_WEB_PASSWORD_FILE"
-sudo chmod 600 "$NETDATA_WEB_PASSWORD_FILE"
 
 echo "   → Writing nginx reverse proxy configuration to $NETDATA_NGINX_CONF"
 sudo mkdir -p "$(dirname "$NETDATA_NGINX_CONF")"
@@ -151,9 +138,9 @@ sudo systemctl restart nginx
 
 echo "   ✅ Netdata Parent accepts Child streams on port $NETDATA_STREAM_PORT and serves the dashboard through nginx on port $NETDATA_DASHBOARD_PORT"
 echo "      Netdata dashboard user: $NETDATA_WEB_USER"
-echo "      Netdata dashboard URL: http://$NETDATA_WEB_USER:$NETDATA_WEB_PASSWORD@$NETDATA_PROXY_HOST:$NETDATA_DASHBOARD_PORT/"
 if [ "$GENERATED_NETDATA_WEB_PASSWORD" -eq 1 ]; then
+  echo "      Netdata dashboard URL: http://$NETDATA_WEB_USER:$NETDATA_WEB_PASSWORD@$NETDATA_PROXY_HOST:$NETDATA_DASHBOARD_PORT/"
   echo "      Netdata dashboard generated password: $NETDATA_WEB_PASSWORD"
 else
-  echo "      Netdata dashboard password: $NETDATA_WEB_PASSWORD"
+  echo "      Netdata dashboard URL: http://$NETDATA_PROXY_HOST:$NETDATA_DASHBOARD_PORT/"
 fi
