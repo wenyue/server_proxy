@@ -3,6 +3,7 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
@@ -39,3 +40,10 @@ if [ "$RELOAD_NGINX" -eq 1 ]; then
 fi
 
 "$PYTHON_BIN" script/registry.py "${args[@]}"
+
+netdata_args=()
+if [ "$RELOAD_NGINX" -eq 1 ]; then
+  netdata_args+=(--reload-nginx)
+fi
+
+bash "$SCRIPT_DIR/refresh_netdata.sh" "${netdata_args[@]}"

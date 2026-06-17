@@ -28,7 +28,6 @@ sudo tee /etc/systemd/system/otaku-registry-refresh.timer >/dev/null <<EOF
 Description=Run OtakuRoom registry refresh hourly
 
 [Timer]
-OnBootSec=5min
 OnUnitActiveSec=1h
 Persistent=true
 
