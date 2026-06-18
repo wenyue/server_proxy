@@ -47,6 +47,10 @@ else
 	echo ""
 fi
 
+# Configure nginx service limits required by high worker_connections values
+bash script/configure_nginx_limits.sh
+echo ""
+
 if [ "$MODE" = "cn2" ]; then
 	# Setup CN2 scheduler before (re)starting nginx, then (re)start nginx
 	bash script/enable_cn2_mode.sh "$STREAMS_TMP_DIR"
