@@ -73,6 +73,10 @@ echo ""
 bash script/install_netdata_child.sh
 echo ""
 
+# Install registry refresh timer after Netdata is available for refresh hooks
+bash script/install_registry_refresh_timer.sh
+echo ""
+
 # Display network information
 bash script/print_public_ip.sh
 echo ""

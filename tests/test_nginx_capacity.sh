@@ -75,9 +75,20 @@ test_node_setup_configures_limits_before_restart() {
     fail "expected nginx limits to be configured before nginx restart"
 }
 
+test_node_setup_installs_registry_refresh_timer_after_netdata_child() {
+  grep -q 'bash script/install_registry_refresh_timer.sh' "$ROOT/setup-node.sh" ||
+    fail "expected node setup to install registry refresh timer"
+  local netdata_line timer_line
+  netdata_line="$(grep -n 'bash script/install_netdata_child.sh' "$ROOT/setup-node.sh" | head -n 1 | cut -d: -f1)"
+  timer_line="$(grep -n 'bash script/install_registry_refresh_timer.sh' "$ROOT/setup-node.sh" | head -n 1 | cut -d: -f1)"
+  [ "$netdata_line" -lt "$timer_line" ] ||
+    fail "expected registry refresh timer to be installed after netdata child"
+}
+
 test_nginx_config_raises_stream_capacity
 test_configure_script_installs_nofile_override
 test_restart_script_only_validates_and_restarts_nginx
 test_node_setup_configures_limits_before_restart
+test_node_setup_installs_registry_refresh_timer_after_netdata_child
 
 echo "nginx capacity tests passed"
